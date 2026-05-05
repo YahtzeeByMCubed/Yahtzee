@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yahtzee"
+version = "0.0.1"
+description = "Embodied DQN agent that plays Yahtzee with a UR3e arm and YOLOv8 vision."
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Matthew Chua" }]
+
+# Brain-in-a-vat runtime deps. These are everything the simulator + DQN +
+# GUI need, and nothing that the perception or robotics layers require.
+dependencies = [
+    "numpy>=1.26",
+    "torch>=2.2",
+    "PyQt6>=6.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+# Real perception layer — adds heavy CV dependencies. Install only on the
+# robot host: `pip install -e .[vision]`. pyrealsense2 ships wheels for
+# x86_64 Linux + Python 3.10 only, so this group is Linux-only.
+vision = [
+    "ultralytics>=8.2",
+    "pyrealsense2>=2.55",
+    "opencv-python>=4.9",
+]
+# NOTE on ROS 2 deps: rclpy and friends cannot be reliably installed via
+# pip. They are part of the ROS 2 Humble distribution and must be
+# installed via apt (`sudo apt install ros-humble-desktop`). The
+# robotics/ stubs in this repo therefore have no [robot] extras group.
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

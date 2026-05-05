@@ -1,0 +1,3 @@
+# Convenience entry point — `pip install -r requirements.txt` installs the
+# brain-in-a-vat dev environment. Source of truth for deps is pyproject.toml.
+-e .[dev]
