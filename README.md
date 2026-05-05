@@ -1,2 +1,4 @@
 # Yahtzee
-Our Yahtzee AI
+This project integrates a Deep Q-Network (DQN) with a UR3e robotic manipulator and YOLOv8-based vision to play Yahtzee autonomously against a human opponent. This document outlines the complete architecture where the AI agent acts as the primary decision-maker, facilitated by a ROS 2 (Humble) Action Server and a robust logic-filtered state machine.
+
+The system is designed to achieve a target average score of 210+ through high-fidelity simulation training. By utilizing a strictly sparse reward strategy, the AI learns holistic, forward-looking strategies over the entirety of a game rather than chasing immediate, greedy payouts. Utilizing a physical "remove-from-play" dice management strategy via the UR3e gripper, the system physically executes the AI's intent, while an Intel RealSense D435if camera provides RGB-D perception interpreted by a CNN model.
