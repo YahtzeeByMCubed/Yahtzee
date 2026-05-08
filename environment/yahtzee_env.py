@@ -161,7 +161,7 @@ class YahtzeeEnv:
         keep_mask = ActionCodec.decode_hold_action(action_idx)
 
         self.dice_manager.reroll(keep_mask)
-        self.current_roll += 1
+        self.current_roll = self.dice_manager.roll_count
 
         reward = 0.0
         done = False
@@ -200,6 +200,7 @@ class YahtzeeEnv:
             )
 
         self.dice_manager.roll_all()
+        self.current_roll = self.dice_manager.roll_count
 
         reward = 0.0
         done = False

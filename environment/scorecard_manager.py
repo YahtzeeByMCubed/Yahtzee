@@ -86,6 +86,62 @@ class ScorecardManager:
     def __init__(self) -> None:
         self.scores: List[Optional[int]] = [None] * NUM_CATEGORIES
         self.yahtzee_bonus: int = 0
+    
+    # ============================================================
+    # GUI-Compatible Category Properties
+    # ============================================================
+
+    @property
+    def ones(self):
+        return self.scores[int(Category.ONES)]
+
+    @property
+    def twos(self):
+        return self.scores[int(Category.TWOS)]
+
+    @property
+    def threes(self):
+        return self.scores[int(Category.THREES)]
+
+    @property
+    def fours(self):
+        return self.scores[int(Category.FOURS)]
+
+    @property
+    def fives(self):
+        return self.scores[int(Category.FIVES)]
+
+    @property
+    def sixes(self):
+        return self.scores[int(Category.SIXES)]
+
+    @property
+    def three_of_a_kind(self):
+        return self.scores[int(Category.THREE_OF_A_KIND)]
+
+    @property
+    def four_of_a_kind(self):
+        return self.scores[int(Category.FOUR_OF_A_KIND)]
+
+    @property
+    def full_house(self):
+        return self.scores[int(Category.FULL_HOUSE)]
+
+    @property
+    def small_straight(self):
+        return self.scores[int(Category.SMALL_STRAIGHT)]
+
+    @property
+    def large_straight(self):
+        return self.scores[int(Category.LARGE_STRAIGHT)]
+
+    @property
+    def yahtzee(self):
+        return self.scores[int(Category.YAHTZEE)]
+
+    @property
+    def chance(self):
+        return self.scores[int(Category.CHANCE)]
 
     # ============================================================
     # Validation / Normalisation

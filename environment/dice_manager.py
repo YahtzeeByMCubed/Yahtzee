@@ -10,11 +10,12 @@ Responsible for:
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Iterable, List, Optional
 
 import numpy as np
 
-from .constants import NUM_DICE, NUM_DIE_FACES
+from .constants import NUM_DICE, NUM_DIE_FACES, MAX_ROLLS_PER_TURN
 
 
 class DiceManagerError(Exception):
@@ -34,10 +35,13 @@ class DiceManager:
     Example:
         [6, 1, 3, 2, 3] becomes [1, 2, 3, 3, 6]
     """
-
     def __init__(self, seed: Optional[int] = None) -> None:
         self.rng = np.random.default_rng(seed)
         self.dice = np.zeros(NUM_DICE, dtype=np.int32)
+
+        # GUI-compatible fields
+        self.roll_count = 0
+        self.keep_mask = [False] * NUM_DICE
 
     def roll_all(self) -> np.ndarray:
         """
@@ -50,23 +54,30 @@ class DiceManager:
             self.rng.integers(1, NUM_DIE_FACES + 1, size=NUM_DICE)
         ).astype(np.int32)
 
+        self.roll_count = 1
+        self.keep_mask = [False] * NUM_DICE
+
         return self.dice.copy()
 
-    def reroll(self, keep_mask: Iterable[bool]) -> np.ndarray:
+    def reroll(self, keep_mask: Optional[Iterable[bool]] = None) -> np.ndarray:
         """
         Reroll dice where keep_mask is False.
 
+        This supports both:
+            env.reroll(keep_mask)
+        and:
+            GUI button calling dice_manager.reroll()
+
         Args:
             keep_mask:
-                Iterable of 5 booleans.
                 True  = keep this die
                 False = reroll this die
-
-        Returns:
-            Sorted np.ndarray of shape (5,)
         """
 
-        mask = list(keep_mask)
+        if keep_mask is None:
+            mask = list(self.keep_mask)
+        else:
+            mask = list(keep_mask)
 
         if len(mask) != NUM_DICE:
             raise InvalidKeepMaskError(
@@ -79,6 +90,12 @@ class DiceManager:
                     f"Keep mask values must be bool, got {type(value).__name__}."
                 )
 
+        # Do nothing if already at roll 3.
+        # The environment legal mask should prevent this,
+        # but this keeps the GUI safe too.
+        if self.roll_count >= MAX_ROLLS_PER_TURN:
+            return self.dice.copy()
+
         kept_dice = self.dice[np.array(mask, dtype=bool)]
         num_to_reroll = NUM_DICE - len(kept_dice)
 
@@ -88,9 +105,18 @@ class DiceManager:
             size=num_to_reroll,
         )
 
-        self.dice = np.sort(
+        final_dice = np.sort(
             np.concatenate([kept_dice, new_dice])
         ).astype(np.int32)
+
+        self.dice = final_dice
+        self.roll_count += 1
+
+        # Rebuild keep_mask after sorting, so the GUI still highlights kept dice.
+        self.keep_mask = self._build_keep_mask_after_sort(
+            kept_dice=kept_dice,
+            final_dice=final_dice,
+        )
 
         return self.dice.copy()
 
@@ -116,6 +142,7 @@ class DiceManager:
                 )
 
         self.dice = np.sort(np.array(dice_list, dtype=np.int32))
+        self.keep_mask = [False] * NUM_DICE
 
     def face_counts(self) -> np.ndarray:
         """
@@ -139,3 +166,63 @@ class DiceManager:
 
     def __str__(self) -> str:
         return f"DiceManager(dice={self.dice.tolist()})"
+    
+    def roll(self) -> np.ndarray:
+        """
+        GUI-compatible alias for roll_all().
+        """
+        return self.roll_all()
+    
+    def toggle_keep(self, index: int) -> None:
+        """
+        GUI-compatible method.
+
+        Toggles whether a die is kept between rolls.
+        """
+
+        if not isinstance(index, int):
+            raise TypeError(f"Dice index must be int, got {type(index).__name__}.")
+
+        if index < 0 or index >= NUM_DICE:
+            raise IndexError(f"Dice index {index} is out of range.")
+
+        if self.roll_count >= MAX_ROLLS_PER_TURN:
+            return
+
+        self.keep_mask[index] = not self.keep_mask[index]
+
+
+    def get_kept_dice(self) -> List[int]:
+        """
+        Return dice currently marked as kept.
+
+        Used by the GUI kept dice display.
+        """
+
+        return [
+            int(value)
+            for value, keep in zip(self.dice, self.keep_mask)
+            if keep
+        ]
+
+
+    def _build_keep_mask_after_sort(self, kept_dice, final_dice) -> List[bool]:
+        """
+        Rebuild keep_mask after sorting the final dice.
+
+        This lets the GUI keep highlighting the dice that were held.
+        """
+
+        remaining = Counter(int(v) for v in kept_dice)
+        new_mask = []
+
+        for value in final_dice:
+            value = int(value)
+
+            if remaining[value] > 0:
+                new_mask.append(True)
+                remaining[value] -= 1
+            else:
+                new_mask.append(False)
+
+        return new_mask
