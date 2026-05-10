@@ -413,7 +413,8 @@ def train(num_episodes: int = 100_000,
           learn_every: int = 1,
           checkpoint_interval: int = 10_000,
           gamma: float = 0.99,
-          beta_anneal_steps: int = 1_000_000) -> None:
+          beta_anneal_steps: int = 1_000_000,
+          shaped_reward: bool = False) -> None:
     """Outer training loop — drives the brain-in-a-vat.
 
     Performance target (design doc §2.2): consistent average score >= 190
@@ -421,10 +422,14 @@ def train(num_episodes: int = 100_000,
     """
     _ensure_env_importable()
     from environment.yahtzee_env import YahtzeeEnv
+    from src.agent.shaped_env import ShapedYahtzeeEnv
 
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Training on device={device}", flush=True)
+    if shaped_reward:
+        print("Reward shaping enabled (§3.4 ablation): per-commit reward = score_added/100.",
+              flush=True)
 
     # On resume, default ε_start to 0.1 instead of 1.0 so we don't waste
     # the first 200k steps re-exploring with a network that already knows
@@ -432,7 +437,7 @@ def train(num_episodes: int = 100_000,
     if eps_start is None:
         eps_start = 0.1 if load_path is not None else 1.0
 
-    env = YahtzeeEnv()
+    env = ShapedYahtzeeEnv() if shaped_reward else YahtzeeEnv()
     agent = DQNAgent(
         device=device,
         eps_start=eps_start,

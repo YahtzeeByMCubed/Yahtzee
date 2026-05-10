@@ -41,6 +41,7 @@ def cmd_train(args: argparse.Namespace) -> None:
         checkpoint_interval=args.checkpoint_interval,
         gamma=args.gamma,
         beta_anneal_steps=args.beta_anneal_steps,
+        shaped_reward=args.shaped_reward,
     )
 
 
@@ -149,6 +150,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_train.add_argument("--beta-anneal-steps", type=int, default=1_000_000,
                          help="Env-steps over which PER β linearly anneals "
                               "0.4 → 1.0. β resets to 0.4 on resume.")
+    p_train.add_argument("--shaped-reward", action="store_true",
+                         help="§3.4 ablation: per-commit reward = score_added/100 "
+                              "instead of strict sparse. Total return per game "
+                              "still equals final_score/100, so eval scores are "
+                              "directly comparable to sparse-trained models.")
     p_train.set_defaults(func=cmd_train)
 
     p_demo = sub.add_parser("demo", help="Launch the GUI dashboard.")
