@@ -449,3 +449,139 @@ Quick lookup if any term in here was unfamiliar.
 - [main.py](main.py) — CLI dispatch for `train` and `demo`.
 
 If you only read one file, read [src/agent/dqn_agent.py](src/agent/dqn_agent.py:430) starting at the `train()` function. Everything else is detail.
+
+## Level 1 Flow Chart
+```
+graph TD
+    %% Start of the Loop
+    Start((Start Turn)) --> Obs[1. Observe State: AI looks at dice and scorecard]
+    
+    %% Decision Making
+    Obs --> Policy{2. Decision Time: Explore or Exploit?}
+    
+    Policy -- "Exploration (Epsilon)" --> Random[Pick a random legal move]
+    Policy -- "Exploitation (Greedy)" --> ONet[Online Network predicts Q-values]
+    
+    ONet --> Mask[3. Apply Legal Mask: Block illegal moves]
+    Mask --> Best[Select best legal action]
+    
+    %% Interaction
+    Random --> Action[4. Execute Action in Game]
+    Best --> Action
+    
+    Action --> Result[5. Receive Reward and Next State]
+    
+    %% Memory
+    Result --> Store[6. Store experience in Replay Buffer]
+    
+    %% The Learning Phase
+    Store --> Learn{7. Time to learn?}
+    
+    Learn -- "No" --> Loop((Next Turn))
+    Learn -- "Yes" --> Sample[8. Sample a batch of 'surprising' memories]
+    
+    Sample --> Compute[9. Compute Error using Online vs. Target Nets]
+    Compute --> Update[10. Update Online Network weights]
+    
+    Update --> Sync{11. Target Sync Step?}
+    Sync -- "Yes" --> Copy[Copy Online Network to Target Network]
+    Sync -- "No" --> Loop
+    Copy --> Loop
+```
+
+## Level 2 Flow Chart
+```
+graph TD
+    subgraph "Interaction & Masking"
+        State[Current State] --> NetIn["Online Network (Forward Pass)"]
+        NetIn --> RawQ["Raw Q-Values (45-dim)"]
+        LegalMask["Legal Move Mask (-inf)"] --> MaskOp["Add Mask to Q-Values"]
+        RawQ --> MaskOp
+        MaskOp --> FinalAction["Argmax (Best Legal Action)"]
+    end
+
+    FinalAction --> Env[[Yahtzee Environment]]
+    Env --> Transition["Experience: (S, A, R, S', Mask')"]
+
+    subgraph "Memory (Prioritized Replay Buffer)"
+        Transition --> Push["Push to Buffer"]
+        Push --> Tree[["Sum Tree (Stores Priorities)"]]
+        Tree -.-> |"High Error = High Priority"| Sample["Sample Mini-batch"]
+    end
+
+    subgraph "The Double DQN Mechanism"
+        Sample --> Batch["S, A, R, S', Next_Mask"]
+        
+        %% Action Selection
+        Batch -- "S'" --> OnlineNext["Online Network"]
+        Next_Mask["Next Legal Mask"] --> OnlineNext
+        OnlineNext -- "Pick Best Next Action" --> BestNextA["Action a'"]
+        
+        %% Value Evaluation
+        Batch -- "S'" --> TargetNet["Target Network"]
+        BestNextA -.-> |"Evaluate Value of a'"| TargetNet
+        TargetNet -- "Target Q-Value" --> Bellman["Compute Target: R + γQ"]
+        
+        %% Current Prediction
+        Batch -- "S" --> OnlineCurrent["Online Network"]
+        OnlineCurrent -- "Predicted Q(S,A)" --> LossCalc["Loss Function (Huber)"]
+        Bellman --> LossCalc
+    end
+
+    subgraph "Optimization"
+        LossCalc --> Grad["Gradient Descent"]
+        Grad --> Adam[[Adam Optimizer]]
+        Adam --> Weights["Update Online Weights"]
+        
+        LossCalc -- "TD-Error" --> TreeUpdate["Update Tree Priorities"]
+        TreeUpdate --> Tree
+        
+        Weights -- "Every 1,000 steps" --> Sync["Sync Weights to Target Net"]
+    endgraph TD
+    subgraph "Interaction & Masking"
+        State[Current State] --> NetIn["Online Network (Forward Pass)"]
+        NetIn --> RawQ["Raw Q-Values (45-dim)"]
+        LegalMask["Legal Move Mask (-inf)"] --> MaskOp["Add Mask to Q-Values"]
+        RawQ --> MaskOp
+        MaskOp --> FinalAction["Argmax (Best Legal Action)"]
+    end
+
+    FinalAction --> Env[[Yahtzee Environment]]
+    Env --> Transition["Experience: (S, A, R, S', Mask')"]
+
+    subgraph "Memory (Prioritized Replay Buffer)"
+        Transition --> Push["Push to Buffer"]
+        Push --> Tree[["Sum Tree (Stores Priorities)"]]
+        Tree -.-> |"High Error = High Priority"| Sample["Sample Mini-batch"]
+    end
+
+    subgraph "The Double DQN Mechanism"
+        Sample --> Batch["S, A, R, S', Next_Mask"]
+        
+        %% Action Selection
+        Batch -- "S'" --> OnlineNext["Online Network"]
+        Next_Mask["Next Legal Mask"] --> OnlineNext
+        OnlineNext -- "Pick Best Next Action" --> BestNextA["Action a'"]
+        
+        %% Value Evaluation
+        Batch -- "S'" --> TargetNet["Target Network"]
+        BestNextA -.-> |"Evaluate Value of a'"| TargetNet
+        TargetNet -- "Target Q-Value" --> Bellman["Compute Target: R + γQ"]
+        
+        %% Current Prediction
+        Batch -- "S" --> OnlineCurrent["Online Network"]
+        OnlineCurrent -- "Predicted Q(S,A)" --> LossCalc["Loss Function (Huber)"]
+        Bellman --> LossCalc
+    end
+
+    subgraph "Optimization"
+        LossCalc --> Grad["Gradient Descent"]
+        Grad --> Adam[[Adam Optimizer]]
+        Adam --> Weights["Update Online Weights"]
+        
+        LossCalc -- "TD-Error" --> TreeUpdate["Update Tree Priorities"]
+        TreeUpdate --> Tree
+        
+        Weights -- "Every 1,000 steps" --> Sync["Sync Weights to Target Net"]
+    end
+    ```
