@@ -3,6 +3,11 @@ This project integrates a Deep Q-Network (DQN) with a UR3e robotic manipulator a
 
 The system is designed to achieve a target average score of 210+ through high-fidelity simulation training. By utilizing a strictly sparse reward strategy, the AI learns holistic, forward-looking strategies over the entirety of a game rather than chasing immediate, greedy payouts. Utilizing a physical "remove-from-play" dice management strategy via the UR3e gripper, the system physically executes the AI's intent, while an Intel RealSense D435if camera provides RGB-D perception interpreted by a CNN model.
 
+## Group information
+- **Micah**: Programmed the environment
+- **Marcus**: Programmed the GUI
+- **Matt**: Trained the AI agent
+
 ## Repository layout
 
 ```
@@ -44,7 +49,51 @@ ROS 2 (Humble) and `pyrealsense2` are required only for the hardware
 demo and are intentionally excluded from the default install. See
 `scripts/setup.sh` for the optional install commands.
 
-To watch our agent play:
-`python main.py demo --weights models/model3.pt --autoplay --speed-ms 500`
+## Run commands
 
-Models: model1.pt, model2.pt.ckpt, model3.pt
+The program is run using the `main.py` script, which provides a CLI with two primary modes: `train` and `demo`.
+
+### Demo Mode
+Launch the GUI dashboard to manually play or watch the AI agent.
+
+```bash
+python main.py demo [OPTIONS]
+```
+
+**Options:**
+* `--weights <path>`: Path to `.pt` file to load trained agent weights.
+* `--autoplay`: Have the agent play games on a loop. (Requires `--weights`).
+* `--speed-ms <int>`: Delay between autoplay actions in milliseconds (default: 500).
+* `--device <cpu|cuda>`: Set the compute device.
+* `--seed <int>`: Random seed for the environment (default: 42).
+
+**Example:**
+```bash
+python main.py demo --weights models/model3.pt --autoplay --speed-ms 500
+```
+Models available: `model1.pt`, `model2.pt.ckpt`, `model3.pt`
+
+### Training Mode
+Run the DQN training loop against the simulated environment.
+
+```bash
+python main.py train [OPTIONS]
+```
+
+**Options:**
+* `--num-episodes <int>`: Number of training episodes (default: 100,000).
+* `--save-path <path>`: Path to save the final model (default: `models/dqn.pt`).
+* `--resume <path>`: Path to a `.pt` file to resume training from.
+* `--eval-interval <int>`: Evaluation interval (default: 1,000).
+* `--checkpoint-interval <int>`: Save checkpoint every N episodes (default: 10,000, 0 to disable).
+* `--learn-every <int>`: Run gradient step every N env steps (default: 1).
+* `--gamma <float>`: Bootstrap discount factor (default: 0.99).
+* `--beta-anneal-steps <int>`: Env-steps for PER beta linear annealing (default: 1,000,000).
+* `--shaped-reward`: Use shaped rewards instead of strict sparse rewards.
+* `--eps-start <float>`: Override initial epsilon (0.0-1.0).
+* `--device <cpu|cuda>`: Set the compute device (auto-detected if omitted).
+
+**Example:**
+```bash
+python main.py train --num-episodes 100000 --save-path models/dqn.pt
+```
