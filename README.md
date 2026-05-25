@@ -43,3 +43,8 @@ pytest                                   # runs the (currently-skipped) test sui
 ROS 2 (Humble) and `pyrealsense2` are required only for the hardware
 demo and are intentionally excluded from the default install. See
 `scripts/setup.sh` for the optional install commands.
+
+To watch our agent play:
+`python main.py demo --weights models/model3.pt --autoplay --speed-ms 500`
+
+Models: model1.pt, model2.pt.ckpt, model3.pt
