@@ -1,0 +1,7 @@
+Yahtzee score card by:
+Mike Davis
+https://www.eecis.udel.edu/~davis/yahtzee.pdf
+
+Komika font
+© 1999-2001, WolfBainX & Apostrophic Labs
+https://www.1001fonts.com/komika-font.html
