@@ -26,4 +26,12 @@ class DQN(nn.Module):
         )
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:
+        if state.dim() not in (1, 2):
+            raise ValueError(
+                f"DQN expects a 1-D state or 2-D batch, got shape {tuple(state.shape)}"
+            )
+        if state.shape[-1] != self.state_dim:
+            raise ValueError(
+                f"DQN expects last dim {self.state_dim}, got {tuple(state.shape)}"
+            )
         return self.network(state)

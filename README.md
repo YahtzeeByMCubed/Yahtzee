@@ -50,7 +50,7 @@ git clone https://github.com/YahtzeeByMCubed/Yahtzee.git
 cd Yahtzee
 scripts/setup.sh                  # creates .venv, installs brain-in-a-vat deps
 source .venv/bin/activate
-pytest                            # verify install
+env -u PYTHONPATH -u AMENT_PREFIX_PATH pytest                  # verify install
 ```
 
 ### Manual setup
@@ -66,7 +66,7 @@ pip install -e ".[dev]"
 
 ### Optional hardware extras
 
-The brain-in-a-vat install above is enough to train, evaluate, and demo
+The "brain" install above is enough to train, evaluate, and demo
 the agent in the simulator. The perception and robotics layers need extra deps:
 
 ```bash
