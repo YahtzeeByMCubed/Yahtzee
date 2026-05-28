@@ -41,8 +41,8 @@ vision = [
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["test"]
-pythonpath = ["src"]
+testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra"
 
 [tool.ruff]

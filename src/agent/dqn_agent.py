@@ -25,20 +25,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from src.agent.action_selection import select_legal_action
 from src.agent.model import DQN, STATE_DIM, ACTION_DIM
-
-
-# -- masking ---------------------------------------------------------------
-
-def select_legal_action(raw_q_values: np.ndarray, legal_moves_mask: np.ndarray) -> int:
-    """Add the legal-moves mask to raw Q-values and argmax.
-
-    Per design doc §3.5.2:
-      - legal_moves_mask is shape (45,), 0.0 for legal, -np.inf for illegal.
-      - Adding it to Q-values leaves legal Q-values unchanged and pushes
-        illegal ones to -inf, so argmax cannot pick an illegal move.
-    """
-    return int(np.argmax(raw_q_values + legal_moves_mask))
 
 
 # -- experience replay -----------------------------------------------------
@@ -421,7 +409,7 @@ def train(num_episodes: int = 100_000,
     over a 100-game evaluation period.
     """
     _ensure_env_importable()
-    from environment.yahtzee_env import YahtzeeEnv
+    from src.engine.yahtzee_env import YahtzeeEnv
     from src.agent.shaped_env import ShapedYahtzeeEnv
 
     if device is None:
@@ -497,7 +485,7 @@ def train(num_episodes: int = 100_000,
 def evaluate(agent: "DQNAgent", num_games: int = 100) -> float:
     """Greedy evaluation — epsilon=0, returns mean total score."""
     _ensure_env_importable()
-    from environment.yahtzee_env import YahtzeeEnv
+    from src.engine.yahtzee_env import YahtzeeEnv
 
     totals: List[int] = []
     for game_idx in range(num_games):

@@ -445,7 +445,7 @@ Quick lookup if any term in here was unfamiliar.
 - [src/agent/model.py](src/agent/model.py) — the network architecture itself. ~30 lines.
 - [src/agent/dqn_agent.py](src/agent/dqn_agent.py) — the agent, replay buffer, training loop. ~450 lines.
 - [src/agent/shaped_env.py](src/agent/shaped_env.py) — the reward-shaping wrapper. ~80 lines.
-- [environment/yahtzee_env.py](environment/yahtzee_env.py) — the rules engine (separate codebase).
+- [src/engine/yahtzee_env.py](src/engine/yahtzee_env.py) — the rules engine.
 - [main.py](main.py) — CLI dispatch for `train` and `demo`.
 
 If you only read one file, read [src/agent/dqn_agent.py](src/agent/dqn_agent.py:430) starting at the `train()` function. Everything else is detail.

@@ -8,13 +8,13 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from environment.action_codec import (
+from src.engine.action_codec import (
     ActionCodec,
     ActionCodecError,
     InvalidActionError,
 )
 
-from environment.constants import (
+from src.engine.constants import (
     NUM_ACTIONS,
     NUM_HOLD_ACTIONS,
     SCORE_OFFSET,

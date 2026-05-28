@@ -50,8 +50,8 @@ def cmd_demo(args: argparse.Namespace) -> None:
     import numpy as np
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtCore import QTimer
-    from environment.yahtzee_env import YahtzeeEnv
-    from gui.gui import Dashboard
+    from src.engine.yahtzee_env import YahtzeeEnv
+    from src.gui.gui import Dashboard
 
     app = QApplication(sys.argv)
     app.setStyleSheet("""

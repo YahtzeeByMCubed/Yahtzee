@@ -31,7 +31,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from environment.yahtzee_env import YahtzeeEnv
+from src.engine.yahtzee_env import YahtzeeEnv
 
 
 class ShapedYahtzeeEnv:

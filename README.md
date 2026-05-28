@@ -13,41 +13,77 @@ The system is designed to achieve a target average score of 210+ through high-fi
 ```
 src/
   engine/        Logic Engine — Yahtzee rules, scorecard, 24-D state vector
-    yahtzee_env.py   YahtzeeStateMachine + 45-action space + sparse reward
-    scorecard.py     ScorecardManager (13 categories, upper bonus, Yahtzee bonus)
-    dice.py          Roll / reroll utilities
+    yahtzee_env.py        YahtzeeEnv: 45-action space, sparse terminal reward
+    scorecard_manager.py  13 categories, upper bonus, Yahtzee bonus
+    dice_manager.py       Roll / reroll utilities
+    action_codec.py       Encode/decode the 45-action space
+    constants.py          Shared dimensions and category indices
   agent/         AI Agent — Deep Q-Network and decision-making
-    model.py         DQN nn.Module (24 -> 128 -> 128 -> 64 -> 45)
-    dqn_agent.py     DQNAgent: epsilon-greedy + PER + learn step + masking
+    model.py              DQN nn.Module (24 -> 128 -> 128 -> 64 -> 45)
+    dqn_agent.py          DQNAgent: epsilon-greedy + PER + learn step + masking
+    action_selection.py   Legal-mask + epsilon-greedy action selection
+    shaped_env.py         §3.4 ablation: per-commit reward shaping wrapper
   gui/           PyQt6 dashboard (passive observer of game state)
-    gui.py           Dashboard, ScorecardView, QChartView
+    gui.py                Dashboard, ScoreQChart, YahtzeeBoard, DicePanel
+    dice.py, misc.py      Dice widget + scorecard helpers
+    assets/               yahtzee_card.png and fonts
   perception/    YOLOv8 + RealSense — STUB (interface only)
   robotics/      ROS 2 PlayYahtzee action client/server — STUB (interface only)
 
-test/            pytest suite (currently all skipped — contracts only)
+tests/           pytest suite covering the env, agent, and action codec
 models/          DQN weight checkpoints (.pt) and YOLO weights
-scripts/         setup.sh, train.sh
+scripts/         setup.sh (env install), smoke_run_env_agent.py
 main.py          mode dispatcher (train | demo)
 ```
 
-The brain-in-a-vat (engine + agent + GUI) is being built first. The
+The brain-in-a-vat (engine + agent + GUI) runs without hardware. The
 `perception/` and `robotics/` packages contain only Protocol-based
 interfaces and stub implementations; the simulator path uses in-memory
-fakes so training never depends on hardware.
+fakes so training never depends on a robot or camera.
 
 ## Getting started (Linux)
 
+### Quick setup (recommended)
+
 ```bash
-git clone <repo>
+git clone https://github.com/YahtzeeByMCubed/Yahtzee.git
 cd Yahtzee
-scripts/setup.sh                         # creates .venv with python3.10
+scripts/setup.sh                  # creates .venv, installs brain-in-a-vat deps
 source .venv/bin/activate
-pytest                                   # runs the (currently-skipped) test suite
+pytest                            # verify install
 ```
 
-ROS 2 (Humble) and `pyrealsense2` are required only for the hardware
-demo and are intentionally excluded from the default install. See
-`scripts/setup.sh` for the optional install commands.
+### Manual setup
+
+If you'd rather not run the script:
+
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -e ".[dev]"
+```
+
+### Optional hardware extras
+
+The brain-in-a-vat install above is enough to train, evaluate, and demo
+the agent in the simulator. The perception and robotics layers need extra deps:
+
+```bash
+# YOLOv8 + Intel RealSense (Linux x86_64, Python 3.10 only)
+pip install -e ".[vision]"
+
+# ROS 2 Humble — required only for the robot action server.
+# Cannot be installed via pip; use apt:
+sudo apt install ros-humble-desktop
+```
+
+### Requirements
+
+- Python 3.10 (the project pins `>=3.10,<3.11` because `pyrealsense2`
+  only ships wheels for 3.10).
+- A virtualenv-capable Python install (`python3.10-venv` on Debian/Ubuntu).
+- (Optional) NVIDIA GPU + CUDA-enabled PyTorch for faster training; CPU works fine for demo and short runs.
 
 ## Run commands
 

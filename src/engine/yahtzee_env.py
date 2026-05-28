@@ -1,148 +1,322 @@
-"""Core state machine — the Logic Engine's main orchestrator.
+"""
+Yahtzee environment orchestrator for the DQN agent.
 
-Per design doc §2.1 and §3.5.3, the YahtzeeStateMachine class:
-  - Drives the 13-turn game cycle (each turn = up to 3 rolls).
-  - Validates every move against the rules (rule integrity = 100%).
-  - Builds the 24-D state vector consumed by the DQN.
-  - Computes the strict sparse reward (0 every step, terminal_score/100 on
-    turn 13).
+This class connects:
+- DiceManager
+- ScorecardManager
+- ActionCodec
 
-The constructor accepts a vision node and a robot client behind abstract
-interfaces (see src/perception, src/robotics) so the simulator can inject
-in-memory fakes during training (the "brain-in-a-vat" mode) and the demo
-can swap in real hardware without touching this file.
+It provides the DQN-facing interface:
+- reset()
+- step(action_idx)
+- get_legal_mask()
+- construct_state_vector()
 
-This module also owns the action-space encoding (45 discrete actions)
-because action decoding is fundamentally a property of the environment,
-not the agent.
+The environment uses a sparse reward strategy:
+- reward = 0.0 during the game
+- reward = final_score / 100.0 when the scorecard is complete
 """
 
 from __future__ import annotations
 
+from typing import Optional, Tuple
+
 import numpy as np
 
-# from src.engine.scorecard import ScorecardManager
-# from src.engine.dice import roll, face_counts
-# from src.perception.vision_node import VisionNode
-# from src.robotics.execution_wrapper import RobotClient
-
-# -- dimensions ------------------------------------------------------------
-
-STATE_DIM = 24
-NUM_ACTIONS = 45
-NUM_HOLD_ACTIONS = 32         # indices 0..31
-NUM_SCORE_ACTIONS = 13        # indices 32..44
-SCORE_OFFSET = 32             # action_idx -= SCORE_OFFSET to get category 0..12
-
-MAX_ROLLS_PER_TURN = 3
-TURNS_PER_GAME = 13
-DICE_PER_ROLL = 5
-
-REWARD_NORMALIZER = 100.0     # design doc §3.4 — terminal_score / 100
+from .action_codec import ActionCodec, InvalidActionError
+from .constants import (
+    STATE_DIM,
+    NUM_ACTIONS,
+    NUM_HOLD_ACTIONS,
+    SCORE_OFFSET,
+    MAX_ROLLS_PER_TURN,
+    TURNS_PER_GAME,
+)
+from .dice_manager import DiceManager
+from .scorecard_manager import ScorecardManager
 
 
-# -- action-space helpers --------------------------------------------------
-
-def is_hold(action_idx: int) -> bool:
-    # TODO: action_idx in [0, NUM_HOLD_ACTIONS)
-    raise NotImplementedError
+class YahtzeeEnvError(Exception):
+    """Base error for Yahtzee environment issues."""
 
 
-def is_score(action_idx: int) -> bool:
-    # TODO: action_idx in [SCORE_OFFSET, NUM_ACTIONS)
-    raise NotImplementedError
+class IllegalActionError(YahtzeeEnvError):
+    """Raised when the agent tries to take an illegal action."""
 
 
-def decode_hold_action(action_idx: int) -> list[bool]:
-    # TODO: return 5-element list, True == keep this die index. Bit i of
-    # action_idx (i in [0, 4]) maps to dice slot i. Bit set = keep, bit
-    # unset = reroll. So action_idx=0 rerolls all five; action_idx=31
-    # keeps all five (only useful before roll 3).
-    raise NotImplementedError
+class GameOverError(YahtzeeEnvError):
+    """Raised when step() is called after the game is already complete."""
 
-
-def decode_score_action(action_idx: int) -> int:
-    # TODO: return ScorecardManager category index 0..12.
-    raise NotImplementedError
-
-
-# -- reward ----------------------------------------------------------------
 
 def sparse_terminal_reward(total_score: int) -> float:
-    # TODO: per design doc §3.4, return total_score / REWARD_NORMALIZER.
-    # Used only when done=True; intermediate steps must return 0.0.
-    raise NotImplementedError
+    """
+    Convert final Yahtzee score into normalized sparse reward.
+
+    Example:
+        total_score = 250
+        reward = 2.5
+    """
+    return total_score / 100.0
 
 
-# -- environment -----------------------------------------------------------
+class YahtzeeEnv:
+    """
+    Main Yahtzee environment.
 
-class YahtzeeStateMachine:
-    """Orchestrates one Yahtzee game from reset to terminal reward.
-
-    Public API (matches design doc §2.4):
-        reset() -> np.ndarray                         # initial 24-D state
-        step(action_idx: int) -> (next_state, reward, done)
-        get_legal_mask() -> np.ndarray                # 45-D, 0.0 or -inf
+    Responsibilities:
+        1. Manage turn number
+        2. Manage current roll number
+        3. Hold/reroll dice
+        4. Score categories
+        5. Produce legal action mask
+        6. Produce 24-D state vector
+        7. Return sparse terminal reward
     """
 
-    def __init__(self, vision_node=None, robot_client=None, seed: int | None = None) -> None:
-        # TODO: store injected dependencies; default to in-memory simulator
-        # fakes when None (brain-in-a-vat path). The fakes should live in
-        # src/perception/vision_node.py (SimVisionNode) and
-        # src/robotics/execution_wrapper.py (SimRobotClient).
-        # TODO: instantiate ScorecardManager.
-        # TODO: initialize roll counter (1..MAX_ROLLS_PER_TURN) and current
-        # dice array (size DICE_PER_ROLL).
-        # TODO: initialize an np.random.Generator from `seed` so training
-        # runs are reproducible.
-        raise NotImplementedError
+    def __init__(self, seed: Optional[int] = None) -> None:
+        self.seed = seed
 
-    # -- public lifecycle ------------------------------------------------
+        self.dice_manager = DiceManager(seed=seed)
+        self.scorecard = ScorecardManager()
+
+        self.current_roll = 1
+        self.turn = 1
+        self.done = False
+
+    # ============================================================
+    # Core DQN Interface
+    # ============================================================
 
     def reset(self) -> np.ndarray:
-        # TODO: clear scorecard, reset roll counter to 1, roll all 5 dice
-        # via the robot/vision (or sim fakes), return construct_state_vector().
-        raise NotImplementedError
+        """
+        Reset the environment to a new game.
 
-    def step(self, action_idx: int) -> tuple[np.ndarray, float, bool]:
-        # TODO:
-        # 1. Validate action_idx against get_legal_mask() (defensive — the
-        #    DQN-side mask should already enforce this, but trust nothing).
-        # 2. Dispatch to robot_client.execute_physical_move(action_idx) and
-        #    raise on robot_status.success == False.
-        # 3. Update internal phase via _update_game_phase(action_idx):
-        #      hold (0..31): reroll non-kept dice, increment roll count.
-        #      score (32..44): commit category, reset roll count to 1, roll
-        #          all 5 dice for the next turn (unless the game is over).
-        # 4. Compute next_state via construct_state_vector().
-        # 5. done = scorecard.is_full().
-        # 6. reward = sparse_terminal_reward(scorecard.total()) if done else 0.0.
-        raise NotImplementedError
+        Returns:
+            Initial 24-D state vector.
+        """
 
-    # -- state vector construction --------------------------------------
+        self.dice_manager = DiceManager(seed=self.seed)
+        self.scorecard = ScorecardManager()
 
-    def construct_state_vector(self) -> np.ndarray:
-        # TODO: assemble the 24-D vector per design doc §3.1:
-        #   [0:6]   — count of each face value 1..6 currently on the table.
-        #   [6:9]   — one-hot of current roll (Roll 1, Roll 2, or Roll 3).
-        #   [9:22]  — 13 binary flags: 1 if scorecard category still open.
-        #   [22]    — upper-section progress, normalized: upper_score / 63.
-        #   [23]    — Yahtzee-bonus eligibility flag (0/1).
-        # Sanity-check (§4.2): if vision returns != 5 dice, raise and let
-        # the GUI surface the error rather than fabricating a state.
-        raise NotImplementedError
+        self.current_roll = 1
+        self.turn = 1
+        self.done = False
+
+        self.dice_manager.roll_all()
+
+        return self.construct_state_vector()
+
+    def step(self, action_idx: int) -> Tuple[np.ndarray, float, bool]:
+        """
+        Execute one DQN action.
+
+        Args:
+            action_idx:
+                Integer from 0 to 44.
+
+                0-31:
+                    Hold/reroll actions.
+
+                32-44:
+                    Score category actions.
+
+        Returns:
+            next_state, reward, done
+        """
+
+        if self.done:
+            raise GameOverError("Cannot call step() because the game is already complete.")
+
+        try:
+            ActionCodec.validate_action(action_idx)
+        except InvalidActionError as exc:
+            raise IllegalActionError(str(exc)) from exc
+
+        legal_mask = self.get_legal_mask()
+
+        if np.isneginf(legal_mask[action_idx]):
+            raise IllegalActionError(
+                f"Action {action_idx} is illegal at turn {self.turn}, roll {self.current_roll}."
+            )
+
+        if ActionCodec.is_hold(action_idx):
+            return self._step_hold(action_idx)
+
+        if ActionCodec.is_score(action_idx):
+            return self._step_score(action_idx)
+
+        raise IllegalActionError(f"Unhandled action index: {action_idx}")
+
+    # ============================================================
+    # Action Handling
+    # ============================================================
+
+    def _step_hold(self, action_idx: int) -> Tuple[np.ndarray, float, bool]:
+        """
+        Handle actions 0-31.
+
+        These actions keep some dice and reroll the rest.
+        """
+
+        keep_mask = ActionCodec.decode_hold_action(action_idx)
+
+        self.dice_manager.reroll(keep_mask)
+        self.current_roll = self.dice_manager.roll_count
+
+        reward = 0.0
+        done = False
+
+        return self.construct_state_vector(), reward, done
+
+    def _step_score(self, action_idx: int) -> Tuple[np.ndarray, float, bool]:
+        """
+        Handle actions 32-44.
+
+        These actions commit the current dice to a scorecard category,
+        end the current turn, and either:
+        - start the next turn
+        - or finish the game
+        """
+
+        category_idx = ActionCodec.decode_score_action(action_idx)
+        current_dice = self.dice_manager.get_dice()
+
+        self.scorecard.commit(category_idx, current_dice)
+
+        if self.scorecard.is_full():
+            self.done = True
+            reward = sparse_terminal_reward(self.scorecard.total())
+
+            terminal_state = np.zeros(STATE_DIM, dtype=np.float32)
+            return terminal_state, reward, True
+
+        self.turn += 1
+        self.current_roll = 1
+
+        if self.turn > TURNS_PER_GAME:
+            raise YahtzeeEnvError(
+                f"Turn counter exceeded {TURNS_PER_GAME}. "
+                "This should not happen if the scorecard has 13 categories."
+            )
+
+        self.dice_manager.roll_all()
+        self.current_roll = self.dice_manager.roll_count
+
+        reward = 0.0
+        done = False
+
+        return self.construct_state_vector(), reward, done
+
+    # ============================================================
+    # Legal Action Mask
+    # ============================================================
 
     def get_legal_mask(self) -> np.ndarray:
-        # TODO: return a 45-D float array where legal action indices are 0.0
-        # and illegal indices are -np.inf. Rules:
-        #   - On roll MAX_ROLLS_PER_TURN, all hold actions (0..31) are illegal —
-        #     the agent MUST score.
-        #   - Score categories whose cell is already filled are illegal.
-        #   - On rolls 1 and 2, both holding and scoring are legal.
-        raise NotImplementedError
+        """
+        Return a 45-D legal action mask.
 
-    # -- internal helpers -----------------------------------------------
+        Values:
+            0.0     = legal action
+            -np.inf = illegal action
 
-    def _update_game_phase(self, action_idx: int) -> None:
-        # TODO: state transitions for hold vs. score actions.
-        raise NotImplementedError
+        Rules:
+            - Hold actions 0-31 are legal on roll 1 and roll 2.
+            - Hold actions are illegal on roll 3.
+            - Score actions 32-44 are legal only if the category is open.
+            - Filled score categories are illegal.
+        """
+
+        mask = np.full(NUM_ACTIONS, -np.inf, dtype=np.float32)
+
+        if self.done:
+            return mask
+
+        # Hold/reroll actions are legal before roll 3.
+        if self.current_roll < MAX_ROLLS_PER_TURN:
+            mask[0:NUM_HOLD_ACTIONS] = 0.0
+
+        # Score actions are legal if the scorecard category is open.
+        open_categories = self.scorecard.get_open()
+
+        for category_idx, is_open in enumerate(open_categories):
+            if is_open == 1:
+                action_idx = SCORE_OFFSET + category_idx
+                mask[action_idx] = 0.0
+
+        return mask
+
+    # ============================================================
+    # State Vector
+    # ============================================================
+
+    def construct_state_vector(self) -> np.ndarray:
+        """
+        Build the 24-D state vector used by the DQN.
+
+        Layout:
+            [0:6]   dice face counts for faces 1-6
+            [6:9]   current roll one-hot encoding
+            [9:22]  open scorecard categories
+            [22]    upper section progress
+            [23]    Yahtzee bonus eligibility
+        """
+
+        face_counts = self.dice_manager.face_counts()
+
+        roll_one_hot = np.zeros(MAX_ROLLS_PER_TURN, dtype=np.float32)
+        roll_one_hot[self.current_roll - 1] = 1.0
+
+        open_categories = np.array(self.scorecard.get_open(), dtype=np.float32)
+
+        upper_progress = np.array(
+            [self.scorecard.upper_prog()],
+            dtype=np.float32,
+        )
+
+        yahtzee_bonus_flag = np.array(
+            [self.scorecard.has_yahtzee_bonus()],
+            dtype=np.float32,
+        )
+
+        state = np.concatenate(
+            [
+                face_counts,
+                roll_one_hot,
+                open_categories,
+                upper_progress,
+                yahtzee_bonus_flag,
+            ]
+        ).astype(np.float32)
+
+        if state.shape != (STATE_DIM,):
+            raise YahtzeeEnvError(
+                f"State vector has shape {state.shape}, expected ({STATE_DIM},)."
+            )
+
+        return state
+
+    # ============================================================
+    # Testing / Debug Helpers
+    # ============================================================
+
+    def set_dice_for_testing(self, dice) -> None:
+        """
+        Manually set dice for deterministic environment tests.
+
+        This should not be used by the DQN during training.
+        """
+        self.dice_manager.set_dice_for_testing(dice)
+
+    def get_dice(self) -> np.ndarray:
+        """Return a copy of the current dice."""
+        return self.dice_manager.get_dice()
+
+    def __str__(self) -> str:
+        return (
+            f"YahtzeeEnv("
+            f"turn={self.turn}, "
+            f"current_roll={self.current_roll}, "
+            f"done={self.done}, "
+            f"dice={self.dice_manager.get_dice().tolist()}"
+            f")"
+        )

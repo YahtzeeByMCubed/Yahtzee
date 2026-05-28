@@ -8,14 +8,14 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from environment.yahtzee_env import (
+from src.engine.yahtzee_env import (
     YahtzeeEnv,
     IllegalActionError,
     GameOverError,
     sparse_terminal_reward,
 )
 
-from environment.constants import (
+from src.engine.constants import (
     STATE_DIM,
     NUM_ACTIONS,
     NUM_HOLD_ACTIONS,

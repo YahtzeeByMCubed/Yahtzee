@@ -8,8 +8,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from agent.model import DQN
-from environment.constants import STATE_DIM, NUM_ACTIONS
+from src.agent.model import DQN
+from src.engine.constants import STATE_DIM, NUM_ACTIONS
 
 
 class TestDQN(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 
-from environment.scorecard_manager import (
+from src.engine.scorecard_manager import (
     ScorecardManager,
     ScorecardError,
     CategoryAlreadyFilledError,
@@ -8,7 +8,7 @@ from environment.scorecard_manager import (
     InvalidDiceError,
 )
 
-from environment.constants import (
+from src.engine.constants import (
     NUM_CATEGORIES,
     UPPER_BONUS_VALUE,
     UPPER_BONUS_THRESHOLD,

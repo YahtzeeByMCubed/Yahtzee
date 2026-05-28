@@ -19,7 +19,7 @@ from typing import Optional
 import numpy as np
 import torch
 
-from environment.constants import NUM_ACTIONS
+from src.engine.constants import NUM_ACTIONS
 
 
 class ActionSelectionError(Exception):

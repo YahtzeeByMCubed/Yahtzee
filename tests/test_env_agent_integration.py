@@ -9,10 +9,10 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from environment.yahtzee_env import YahtzeeEnv
-from environment.constants import STATE_DIM, NUM_ACTIONS
-from agent.model import DQN
-from agent.action_selection import select_legal_action, select_epsilon_greedy_action
+from src.engine.yahtzee_env import YahtzeeEnv
+from src.engine.constants import STATE_DIM, NUM_ACTIONS
+from src.agent.model import DQN
+from src.agent.action_selection import select_legal_action, select_epsilon_greedy_action
 
 
 class TestEnvAgentIntegration(unittest.TestCase):

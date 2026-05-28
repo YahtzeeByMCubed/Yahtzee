@@ -9,13 +9,13 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from agent.action_selection import (
+from src.agent.action_selection import (
     select_legal_action,
     select_epsilon_greedy_action,
     NoLegalActionsError,
 )
 
-from environment.constants import NUM_ACTIONS
+from src.engine.constants import NUM_ACTIONS
 
 
 class TestActionSelection(unittest.TestCase):

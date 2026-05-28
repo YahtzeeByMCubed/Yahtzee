@@ -1,7 +1,7 @@
 import random
 import numpy as np
 
-from environment.scorecard_manager import ScorecardManager
+from src.engine.scorecard_manager import ScorecardManager
 
 
 def generate_random_yahtzee_game():

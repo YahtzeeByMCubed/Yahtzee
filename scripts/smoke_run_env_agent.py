@@ -8,9 +8,9 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from environment.yahtzee_env import YahtzeeEnv
-from agent.model import DQN
-from agent.action_selection import select_epsilon_greedy_action
+from src.engine.yahtzee_env import YahtzeeEnv
+from src.agent.model import DQN
+from src.agent.action_selection import select_epsilon_greedy_action
 
 
 def run_one_game(seed=42, epsilon=1.0):
