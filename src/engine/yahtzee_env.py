@@ -91,11 +91,19 @@ class YahtzeeEnv:
         """
         Reset the environment to a new game.
 
+        We deliberately reuse the existing DiceManager rather than rebuilding
+        it with `self.seed`. Reseeding on every reset would restart the RNG
+        from the identical sequence, so a fixed seed would make every game
+        byte-for-byte identical (e.g. autoplay replaying the same 257 forever).
+        Reusing the manager lets its RNG stream advance, so a fixed seed makes
+        the *session* reproducible while each game still differs. The seed is
+        applied once in __init__, so the first game after construction is
+        deterministic.
+
         Returns:
             Initial 24-D state vector.
         """
 
-        self.dice_manager = DiceManager(seed=self.seed)
         self.scorecard = ScorecardManager()
 
         self.current_roll = 1
